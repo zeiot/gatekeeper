@@ -1,0 +1,57 @@
+# Copyright 2018-2019 Nicolas Lamirault <nicolas.lamirault@gmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# VERSION 3.0.2
+# AUTHOR:         Nicolas Lamirault <nicolas.lamirault@gmail.com>
+# DESCRIPTION:    zeiot/gatekeeper
+
+FROM golang:1.12.4 as builder
+
+ENV GATEKEEPER_VERSION 3.0.2
+
+ENV GOPATH=/go
+ENV GOOS=linux
+ENV GOARCH=arm64
+ENV GOARM=7
+
+WORKDIR $GOPATH/src/github.com/open-policy-agent
+RUN git clone --branch v${GATEKEEPER_VERSION} https://github.com/open-policy-agent/gatekeeper \
+    && cd $GOPATH/src/github.com/open-policy-agent/gatekeeper \
+    && CGO_ENABLED=0 go build -a -o manager github.com/open-policy-agent/gatekeeper/cmd/manager
+
+RUN ls /go/src/github.com/open-policy-agent/gatekeeper/cmd/manager
+
+# ---
+
+FROM balenalib/armv7hf-alpine:3.9
+# FROM balenalib/armv7hf-debian:stretch
+# FROM resin/armv7hf-debian:stretch
+
+LABEL summary="Open Policy Agent Gatekeeper for ARM devices" \
+      description="Open Policy Agent Gatekeeper for ARM devices" \
+      name="zeiot/gatekeeper" \
+      url="https://github.com/zeiot/gatekeeper" \
+      maintainer="Nicolas Lamirault <nicolas.lamirault@gmail.com>"
+
+ENV GATEKEEPER_VERSION 3.0.2
+
+RUN [ "cross-build-start" ]
+
+COPY --from=builder /go/src/github.com/open-policy-agent/gatekeeper/cmd/manager /usr/bin/manager
+
+RUN [ "cross-build-end" ]
+
+USER nobody:nobody
+
+ENTRYPOINT ["/usr/bin/manager"]
